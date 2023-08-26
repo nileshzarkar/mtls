@@ -1,0 +1,56 @@
+apt update
+apt install apache2
+apache2 -version
+
+Firewall configuration
+We will now need to open some ports on our system to access Apache externally. First, let's mention the application profiles that we will provide Apache access to. Execute the below command to do it:
+
+ufw app list  
+We can see distinct Apache profiles in the following screenshot:
+
+We will apply the highly restrictive 'Apache' profile to activate network connectivity on 80 port.
+ufw allow 'Apache'  
+ufw status
+
+Setting up Apache Web Server; Verify Apache Service
+
+First, we will verify the Apache service is running before moving to the configuration process. We will run the following command in the terminal window to do so:
+
+systemctl status apache2
+We can find the Apache service is running and active from the above result. Another method to verify the Apache service is activated is by claiming a web page through the Apache web server. We need to find our IP address with the below command to do so:
+
+hostname -I  
+
+How to Manage the Apache Server?
+
+Here are a few of the helpful commands that we can execute in the terminal window for managing the Apache server.
+
+For starting the Apache server:
+systemctl start apache2e  
+For stopping the Apache server:
+systemctl stop apache2  
+For stopping and starting the Apache server:
+systemctl stop apache2  
+For reloading the Apache server for updating the fresh configurations:
+systemctl reload apache2  
+For starting the Apache server at the boot time:
+systemctl enable apache2  
+For disabling the Apache server at the boot time:
+systemctl disable apache2  
+
+Config Location:
+/etc/apache2/apache2.conf
+/var/www/html/index.html
+
+Logs:
+/var/log/apache2/
+
+From laptop to vm ip : http://192.168.101.5/
+
+To check firewall status use the ufw status command in the terminal.
+sudo ufw status
+For more detailed status use verbose option with ufw status command.
+sudo ufw status verbose
+
+https://www.configserverfirewall.com/ufw-ubuntu-firewall/ubuntu-check-firewall-status-ufw/
+
