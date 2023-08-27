@@ -1,8 +1,6 @@
 What is NGINX ?
 It is a webserver that accept request via http/s and respond to display website content through storing, processing and delivering web pages to users.
-
 This can also be used as a reverse proxy, load balancer, mail proxy and HTTP cache.
-
 Companies like Airbnb, Netflix, and many other deploy NGINX for scalability and performance reasons
 
 Installation

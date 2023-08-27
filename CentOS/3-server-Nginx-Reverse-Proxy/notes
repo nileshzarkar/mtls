@@ -1,0 +1,76 @@
+Centos-Server-1
+Steps to run https with yellow html page
+/var/www/html/index.html (you need to add this file)
+http://<APACHE-1-SERVER-IP>/
+http://192.168.101.6/
+====================================================================================================
+Centos-Server-2
+Steps to run https with blue html page
+/var/www/html/index.html (you need to add this file)
+http://<APACHE-2-SERVER-IP>/
+http://192.168.101.8/
+
+=====================================================================================================
+Centos-Server-3 (nginx)
+yum install epel-release
+yum install nginx
+
+open http and https port 
+------------------------
+firewall-cmd --permanent --zone=public --add-service=http
+firewall-cmd --permanent --zone=public --add-service=https
+firewall-cmd --reload
+
+systemctl start nginx
+systemctl enable nginx
+systemctl status nginx
+
+http://<NGINX-SERVER-IP>/
+http://192.168.101.12/ ==> This should show the nginx home page 
+
+Update nginx.conf for example.com
+nano /etc/nginx/nginx.conf 
+server {
+        ....
+        server_name  example.com;
+        # root         /usr/share/nginx/html;
+        ....        
+        location / {
+           proxy_pass http://192.168.101.6/;
+        }
+        ....    
+}
+systemctl restart nginx
+systemctl status nginx
+
+update the /etc/hosts file in nginx server 
+<IP-OF-YELLOW-SERVER> <192.168.101.6>  example.com
+
+http://<NGINX-SERVER-IP>/
+http://192.168.101.12/ ==> This should show yellow html page
+
+Update nginx.conf for mywebsite.com
+nano /etc/nginx/nginx.conf 
+ server {
+        ....
+        # server_name  _;
+        server_name  mywebsite.com;
+        # root         /usr/share/nginx/html;
+        # Load configuration files for the default server block.
+        .....        
+        location / {
+           proxy_pass http://192.168.101.8/;
+        }
+        ////    
+ }
+
+systemctl restart nginx
+systemctl status nginx
+
+update the /etc/hosts file in nginx server 
+<IP-OF-BLUE-SERVER> <192.168.101.8> mywebsite.com
+
+http://<NGINX-SERVER-IP>/view
+http://192.168.101.12/ ==> This should show blue html page
+
+

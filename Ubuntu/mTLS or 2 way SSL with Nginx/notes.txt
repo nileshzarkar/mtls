@@ -1,0 +1,196 @@
+mTLS with self-signed certificates in nginx
+
+First step is to generate the certificate and keys:
+
+mkdir nginx-certs
+cd nginx-certs
+# This will ask for a password. I am using 'test' here to make it easy,
+openssl req -subj '/CN=ssl.test.local' -x509 -new -newkey rsa:4096 -keyout key.pem -out cert.pem -sha256 -days 365
+openssl rsa -in key.pem -out key-no-pass.pem
+# This will also ask for a password. I will use 'test' again and will refer it in the final curl test command
+openssl pkcs12 -export -out client.p12 -inkey key-no-pass.pem -in cert.pem
+openssl verify -CAfile cert.pem cert.pem
+
+The verify command should return OK, confirming that the certificate can be validated by itself.
+
+The next step is to create an nginx config at /etc/nginx/sites-available/ssl-test-local, and enable it by linking it to /etc/nginx/sites-enabled/ssl-test-local, considering the default local on Debian and Ubuntu systems.
+
+The configuration should look like this (certificate paths will change on different systems):
+
+server {
+	  server_name ssl.test.local;
+	  ssl on;
+	  ssl_certificate /home/jeduardo/nginx-certs/cert.pem;
+	  ssl_certificate_key /home/jeduardo/nginx-certs/key-no-pass.pem;
+	  ssl_client_certificate /home/jeduardo/nginx-certs/cert.pem;
+	  ssl_verify_client optional;
+	  ssl_session_timeout 5m;
+	  ssl_protocols TLSv1 TLSv1.1 TLSv1.2;
+	  ssl_prefer_server_ciphers on;
+	  ssl_ciphers "EECDH+AESGCM:EDH+AESGCM:AES256+EECDH:AES256+EDH";
+	  add_header Strict-Transport-Security "max-age=31536000";
+	  listen 4444 ssl;
+	  	  
+	  location / {
+	  	  default_type text/plain;
+	  	  if ($ssl_client_verify != SUCCESS) {
+	  	      return 403 'blocked access to mTLS-protected resource';
+	  	  }
+	  	  return 200 'access to mTLS-protected resource';
+	  }
+	  	  
+}
+
+After that, verify that the configuration is fine with nginx -t and enable it with nginx -s reload.
+
+Then it's time to run a test with curl. The first test is to show to confirm that the resource is protected:
+
+# curl -v https://ssl.test.local:4444 --resolve ssl.test.local:4444:127.0.0.1 --cacert cert.pem
+* Added ssl.test.local:4444:127.0.0.1 to DNS cache
+* Hostname ssl.test.local was found in DNS cache
+*   Trying 127.0.0.1:4444...
+* Connected to ssl.test.local (127.0.0.1) port 4444 (#0)
+* ALPN, offering h2
+* ALPN, offering http/1.1
+* successfully set certificate verify locations:
+*  CAfile: cert.pem
+*  CApath: /etc/ssl/certs
+* TLSv1.3 (OUT), TLS handshake, Client hello (1):
+* TLSv1.3 (IN), TLS handshake, Server hello (2):
+* TLSv1.2 (IN), TLS handshake, Certificate (11):
+* TLSv1.2 (IN), TLS handshake, Server key exchange (12):
+* TLSv1.2 (IN), TLS handshake, Request CERT (13):
+* TLSv1.2 (IN), TLS handshake, Server finished (14):
+* TLSv1.2 (OUT), TLS handshake, Certificate (11):
+* TLSv1.2 (OUT), TLS handshake, Client key exchange (16):
+* TLSv1.2 (OUT), TLS change cipher, Change cipher spec (1):
+* TLSv1.2 (OUT), TLS handshake, Finished (20):
+* TLSv1.2 (IN), TLS handshake, Finished (20):
+* SSL connection using TLSv1.2 / ECDHE-RSA-AES256-GCM-SHA384
+* ALPN, server accepted to use http/1.1
+* Server certificate:
+*  subject: CN=ssl.test.local
+*  start date: Jan 28 21:43:46 2023 GMT
+*  expire date: Jan 28 21:43:46 2024 GMT
+*  common name: ssl.test.local (matched)
+*  issuer: CN=ssl.test.local
+*  SSL certificate verify ok.
+> GET / HTTP/1.1
+> Host: ssl.test.local:4444
+> User-Agent: curl/7.74.0
+> Accept: */*
+>
+* Mark bundle as not supporting multiuse
+< HTTP/1.1 403 Forbidden
+< Server: nginx/1.18.0
+< Date: Sat, 28 Jan 2023 21:49:50 GMT
+< Content-Type: text/plain
+< Content-Length: 41
+< Connection: keep-alive
+<
+* Connection #0 to host ssl.test.local left intact
+blocked access to mTLS-protected resource
+
+This shows that curl was able to use the self-signed certificate as a CA, but since it did not present the client certificate, there was no mutual TLS validation.
+
+And the final test should confirm that the mTLS protection actually works when the client key and client certificate are presented:
+
+$ curl -v https://ssl.test.local:4444 --resolve ssl.test.local:4444:127.0.0.1 --cacert cert.pem --key key-no-pass.pem --cert cert.pem
+* Added ssl.test.local:4444:127.0.0.1 to DNS cache
+* Hostname ssl.test.local was found in DNS cache
+*   Trying 127.0.0.1:4444...
+* Connected to ssl.test.local (127.0.0.1) port 4444 (#0)
+* ALPN, offering h2
+* ALPN, offering http/1.1
+* successfully set certificate verify locations:
+*  CAfile: cert.pem
+*  CApath: /etc/ssl/certs
+* TLSv1.3 (OUT), TLS handshake, Client hello (1):
+* TLSv1.3 (IN), TLS handshake, Server hello (2):
+* TLSv1.2 (IN), TLS handshake, Certificate (11):
+* TLSv1.2 (IN), TLS handshake, Server key exchange (12):
+* TLSv1.2 (IN), TLS handshake, Request CERT (13):
+* TLSv1.2 (IN), TLS handshake, Server finished (14):
+* TLSv1.2 (OUT), TLS handshake, Certificate (11):
+* TLSv1.2 (OUT), TLS handshake, Client key exchange (16):
+* TLSv1.2 (OUT), TLS handshake, CERT verify (15):
+* TLSv1.2 (OUT), TLS change cipher, Change cipher spec (1):
+* TLSv1.2 (OUT), TLS handshake, Finished (20):
+* TLSv1.2 (IN), TLS handshake, Finished (20):
+* SSL connection using TLSv1.2 / ECDHE-RSA-AES256-GCM-SHA384
+* ALPN, server accepted to use http/1.1
+* Server certificate:
+*  subject: CN=ssl.test.local
+*  start date: Jan 28 21:43:46 2023 GMT
+*  expire date: Jan 28 21:43:46 2024 GMT
+*  common name: ssl.test.local (matched)
+*  issuer: CN=ssl.test.local
+*  SSL certificate verify ok.
+> GET / HTTP/1.1
+> Host: ssl.test.local:4444
+> User-Agent: curl/7.74.0
+> Accept: */*
+>
+* Mark bundle as not supporting multiuse
+< HTTP/1.1 200 OK
+< Server: nginx/1.18.0
+< Date: Sat, 28 Jan 2023 21:51:02 GMT
+< Content-Type: text/plain
+< Content-Length: 33
+< Connection: keep-alive
+< Strict-Transport-Security: max-age=31536000
+<
+* Connection #0 to host ssl.test.local left intact
+access to mTLS-protected resource
+
+The message shows that nginx was able to validate the client certificate against the certificate authority in the configuration, thus allowing access to the resource.
+
+And finally, the same test with the p12 bundle:
+
+# curl -v https://ssl.test.local:4444 --resolve ssl.test.local:4444:127.0.0.1 --cacert cert.pem --cert-type P12 --cert client.p12:test
+* Added ssl.test.local:4444:127.0.0.1 to DNS cache
+* Hostname ssl.test.local was found in DNS cache
+*   Trying 127.0.0.1:4444...
+* Connected to ssl.test.local (127.0.0.1) port 4444 (#0)
+* ALPN, offering h2
+* ALPN, offering http/1.1
+* successfully set certificate verify locations:
+*  CAfile: cert.pem
+*  CApath: /etc/ssl/certs
+* TLSv1.3 (OUT), TLS handshake, Client hello (1):
+* TLSv1.3 (IN), TLS handshake, Server hello (2):
+* TLSv1.2 (IN), TLS handshake, Certificate (11):
+* TLSv1.2 (IN), TLS handshake, Server key exchange (12):
+* TLSv1.2 (IN), TLS handshake, Request CERT (13):
+* TLSv1.2 (IN), TLS handshake, Server finished (14):
+* TLSv1.2 (OUT), TLS handshake, Certificate (11):
+* TLSv1.2 (OUT), TLS handshake, Client key exchange (16):
+* TLSv1.2 (OUT), TLS handshake, CERT verify (15):
+* TLSv1.2 (OUT), TLS change cipher, Change cipher spec (1):
+* TLSv1.2 (OUT), TLS handshake, Finished (20):
+* TLSv1.2 (IN), TLS handshake, Finished (20):
+* SSL connection using TLSv1.2 / ECDHE-RSA-AES256-GCM-SHA384
+* ALPN, server accepted to use http/1.1
+* Server certificate:
+*  subject: CN=ssl.test.local
+*  start date: Jan 28 21:43:46 2023 GMT
+*  expire date: Jan 28 21:43:46 2024 GMT
+*  common name: ssl.test.local (matched)
+*  issuer: CN=ssl.test.local
+*  SSL certificate verify ok.
+> GET / HTTP/1.1
+> Host: ssl.test.local:4444
+> User-Agent: curl/7.74.0
+> Accept: */*
+>
+* Mark bundle as not supporting multiuse
+< HTTP/1.1 200 OK
+< Server: nginx/1.18.0
+< Date: Sat, 28 Jan 2023 22:11:50 GMT
+< Content-Type: text/plain
+< Content-Length: 33
+< Connection: keep-alive
+< Strict-Transport-Security: max-age=31536000
+<
+* Connection #0 to host ssl.test.local left intact
+access to mTLS-protected resource
