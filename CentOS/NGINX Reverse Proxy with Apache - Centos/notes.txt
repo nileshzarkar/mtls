@@ -1,0 +1,14 @@
+What is a proxy server?
+In computer networking, a proxy server is a server application that acts as an intermediary between a client requesting 
+a resource and the server providing that resource.
+
+What is a reverse proxy server?
+A proxy service which takes a client request, passes it on to one or more servers.
+Proxying is typically used to distribute the load among several servers, 
+seamlessly show content from different websites, 
+or pass requests for processing to application servers over protocols other than HTTP.
+
+How to solve access denied issue in NGINX reverse proxy?
+[crit] 59982#0: *2 connect() to 127.0.0.1:8080 failed (13: Permission denied) 
+while connecting to upstream, 
+client: 192.168.29.179, server: _, request: "GET / HTTP/1.1", upstream: "http://127.0.0.1:8080/", host: "192.168.29.41"
