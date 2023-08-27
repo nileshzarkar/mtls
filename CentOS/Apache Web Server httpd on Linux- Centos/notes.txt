@@ -1,0 +1,49 @@
+HTTP Daemon is a software program that runs in the background of a web server and waits for the 
+incoming server requests.
+
+The daemon answers the request automatically and serves the hypertext and multimedia documents 
+over the Internet using HTTP.
+
+yum install httpd
+httpd -version
+
+
+Config Location: 
+/etc/httpd/conf/httpd.conf
+/var/www/html/index.html (you need to add this file)
+
+Logs:
+/var/log/httpd
+
+Details of httpd.conf
+#Listen 12.34.56.78:80
+Listen 80
+User apache
+Group apache
+#ServerName www.example.com:80
+DocumentRoot "/var/www/html"
+ErrorLog "logs/error_log"
+
+For checking status of Apache server:
+systemctl status httpd 
+For starting the Apache server:
+systemctl start httpd  
+
+Stopping firewall
+systemctl status firewalld
+systemctl stop firewalld
+
+
+For stopping the Apache server:
+systemctl stop httpd  
+For stopping and starting the Apache server:
+systemctl restart httpd  
+For reloading the Apache server for updating the fresh configurations:
+systemctl reload httpd  
+For starting the Apache server at the boot time:
+systemctl enable httpd  
+For disabling the Apache server at the boot time:
+systemctl disable httpd
+
+
+

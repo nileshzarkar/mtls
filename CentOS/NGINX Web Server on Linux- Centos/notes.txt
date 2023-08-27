@@ -28,7 +28,10 @@ yum install nginx
 
 
 Start and check the status of nginx
-systemctl status/start/stop nginx
+systemctl status nginx
+systemctl start nginx
+systemctl stop nginx
+
 Another way of verifying
 curl -I 127.0.0.0.1
 ========================================================

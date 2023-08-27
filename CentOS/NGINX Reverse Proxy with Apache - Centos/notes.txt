@@ -8,7 +8,47 @@ Proxying is typically used to distribute the load among several servers,
 seamlessly show content from different websites, 
 or pass requests for processing to application servers over protocols other than HTTP.
 
+Firewall should be disabled on this server
+systemctl status firewalld ==> systemctl stop firewalld 
+You should have APACHE (httpd) running on port 8080
+nano /etc/httpd/conf/httpd.conf  ==> Listen 8080
+You should have the nginx running on port 80
+
+Changes in the conf for reverse proxy
+Config Location : /etc/nginx/nginx.conf
+or 
+Config Location : /etc/nginx/conf.d/default.conf
+location / {
+        # root   /usr/share/nginx/html;
+        # index  index.html index.htm;
+        proxy_pass http://127.0.0.1:8080/;
+        # the value of proxy_pass is the value of the apache (httpd) server 
+    }
+
+ Access NGINX url and you should see Apache page    
+Hit http://192.168.101.12/  ==> You may hit the error page
+
+Check logs 
+/var/log/nginx
+
+cat /var/log/audit/audit.log | grep nginx | grep denied
+
 How to solve access denied issue in NGINX reverse proxy?
+type=AVC msg=audit(1693102310.296:333): avc:  denied  { name_connect } for  pid=27946 comm="nginx" 
+dest=8080 scontext=system_u:system_r:httpd_t:s0 
+tcontext=system_u:object_r:http_cache_port_t:s0 tclass=tcp_socket permissive=0
+
+OR 
+
 [crit] 59982#0: *2 connect() to 127.0.0.1:8080 failed (13: Permission denied) 
 while connecting to upstream, 
 client: 192.168.29.179, server: _, request: "GET / HTTP/1.1", upstream: "http://127.0.0.1:8080/", host: "192.168.29.41"
+
+Solution: 
+List of all the httpd SELInux boolean
+#getsebool -a | grep httpd
+
+Enable network connect boolean 
+#setsebool httpd_can_network_connect on -P
+
+Hit http://192.168.101.12/  ==> You will see the apache page
